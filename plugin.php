@@ -49,29 +49,28 @@ function pushover_post_add_new_link($args)
     $data = $args[3];
     $message = <<<MSG
 Target: {$data['url']['url']}
-IP: {$data['url']['ip']}
-ARG0: {$args[0]}
-ARG1: {$args[1]}
-ARG2: {$args[2]}
-ARG3: {$args[3]}
+Target Title: {$args[2]}
+User IP: {$data['url']['ip']}
 MSG;
 
-    pushover_notify($args[1] . '" created', $message);
+    pushover_notify($args[1] . ' created', $message);
 }
 
 function pushover_redirect_shorturl($args)
 {
-    $data = $args[3];
+    $regex = yourls_get_option('pushover_redirect_short_regex');
+    if (!empty($regex)) {
+        if (! preg_match($regex, $args[1])) {
+            return;
+        }
+    }
+
     $message = <<<MSG
-Target: {$data['url']['url']}
-IP: {$data['url']['ip']}
-ARG0: {$args[0]}
-ARG1: {$args[1]}
-ARG2: {$args[2]}
-ARG3: {$args[3]}
+Short: {$args[1]}
+Target: {$args[0]}
 MSG;
 
-    pushover_notify($args[1] . '" redirected', $message);
+    pushover_notify($args[1] . ' redirected', $message);
 }
 
 yourls_add_action('plugins_loaded', 'pushover_loaded');
@@ -119,8 +118,13 @@ function pushover_settings_page()
         $user_key = $_POST['pushover_user_key'];
         yourls_update_option('pushover_user_key', $user_key);
 
-        $click_regex = $_POST['pushover_click_regex'];
-        yourls_update_option('pushover_click_regex', $click_regex);
+        $redirect_short_regex = $_POST['pushover_redirect_short_regex'];
+        if (! empty($redirect_short_regex)) {
+            if (substr($redirect_short_regex, 0, 1) != '/') {
+                $redirect_short_regex = '/' . $redirect_short_regex . '/';
+            }
+        }
+        yourls_update_option('pushover_redirect_short_regex', $redirect_short_regex);
 
         $posted_events = [];
         if (!empty($_POST['events'])) {
@@ -137,7 +141,7 @@ function pushover_settings_page()
     } else {
         $app_token = yourls_get_option('pushover_app_token', '');
         $user_key = yourls_get_option('pushover_user_key', '');
-        $click_regex = yourls_get_option('pushover_click_regex', '');
+        $redirect_short_regex = yourls_get_option('pushover_redirect_short_regex', '');
     }
 
     $nonce = yourls_create_nonce('pushover_settings');
@@ -167,7 +171,7 @@ HTML;
             </fieldset>
             <p>
                 <label>Short Click Regex</label>
-                <input type="text" name="pushover_click_regex" value="$click_regex" size="100" />
+                <input type="text" name="pushover_redirect_short_regex" value="$redirect_short_regex" size="100" />
             </p>
             <p><input type="submit" value="Save" class="button" /></p>
             </form>
